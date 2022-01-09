@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Publish</title>
+    <link rel="stylesheet" href="lib/spectrum.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="lib/spectrum.js"></script>
+    <script src="lib/gadgetlib.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0px;
+            background-color: transparent;
+        }
+        .col-md-4{
+            margin-bottom:20px;
+        }
+        #main{
+            margin: 0 12px 12px 12px;
+        }
+        input[type="text"] {
+            margin:0px;
+            width: 175px;
+        }
+        div.center{
+            margin: 0px auto;
+        }
+        @-webkit-keyframes loading-ellipse{
+            0%{content: "";}
+            10% {content:" .";}
+            40%{content:" . .";}
+            70%{content:" . . .";}
+        }
+        @-moz-keyframes loading-ellipse{
+            0%{content: "";}
+            10% {content:" .";}
+            40%{content:" . .";}
+            70%{content:" . . .";}
+        }
+        @-o-keyframes loading-ellipse{
+            0%{content: "";}
+            10% {content:" .";}
+            40%{content:" . .";}
+            70%{content:" . . .";}
+        }
+        @keyframes loading-ellipse{
+            0%{content: "";}
+            10% {content:" .";}
+            40%{content:" . .";}
+            70%{content:" . . .";}
+        }
+        .message{
+            font-weight:bold;
+        }
+        .loading{
+            font-weight:bold;
+        }
+        .loading:after{
+            content:" . . .";
+            -webkit-animation: loading-ellipse 3s linear infinite;
+            -moz-animation: loading-ellipse 3s linear infinite;
+            -o-animation: loading-ellipse 3s linear infinite;
+            animation: loading-ellipse 3s linear infinite;
+        }
+        .error{
+            font-weight:bold;
+            color:red;
+        }
+    </style>
+</head>
+<body>
+    <div id="main">
+    <p><strong>Pick a file type to be published</strong></p>
+        <form name="create-story" id="publish-files">
+            <div align="left">
+                <div class="col-md-4 text-center">
+                    <label for="interior" class="radio inline"><input  type="radio" name="file-type" value="interior.xsl" id="interior" checked />Interior Page</label>
+                    <br>
+                    <label for="alumni" class="radio inline"><input type="radio" name="file-type" value="alumni.xsl" id="alumni" />Alumni Profile</label>
+                    <br>
+                    <label for="publication" class="radio inline"><input type="radio" name="file-type" value="news.xsl" id="publication" />Publication Story</label>
+                    <br>
+                    <label for="personnel" class="radio inline"><input type="radio" name="file-type" value="profile.xsl" id="personnel" />Personnel Information</label>
+                    <br>
+                    <label for="expert" class="radio inline"><input type="radio" name="file-type" value="news-expert.xsl" id="expert" />Expert Page</label>
+                </div>
+            </div>
+            <div id="submit">
+                <div class="col-md-4 text-center">
+                    <input class="hbutton btn btn-primary" type="submit" id="publish-files-submit" value = "Publish Files">
+                </div>
+            </div>
+            <div id ="message-area">
+            </div>
+        </form>
+        <div id="button-area" style="display:none">
+            <button onclick="listFiles()">List of unpublished files</button>
+        </div>
+    </div>
+        <!--
+        The following hidden div is only needed if you'll be editing your gadget in
+        OU Campus's source code editor. OU Campus automatically adds a DirectEdit link
+        to HTML files that you edit in OU Campus. This div hides the DirectEdit link.
+    -->
+    <div style="display:none">
+        <!-- ouc:ob --><!-- /ouc:ob -->
+    </div>
+    <script type="text/javascript">
+        var data_set_1; //results from search that does not include checked out files
+        var data_set_2; //results from search that does include checked out files
+        var info_temp; //temp var to store data from post
+        var data_hold; //temp to hold account and authToken
+        var search_string; //the string to find files
+        var finished = false; //if the search is finished 
+        var difference = []; //the difference between data_set_1 and data_set_2
+        var unpublished = [];//list of paths of unpublished files
+        var search_path = "/";//the path to search and find files 
+        //set to "/" to search all sites
+//suppourt functions 
+/*This is called when the button is pressed to view the unpublished files
+It list them in a new window
+*/
+function listFiles(){
+    var myWindow = window.open("", "MsgWindow", "width=400,height=500");
+    
+
+    console.log("next is unpublished");
+    console.log(unpublished);
+    myWindow.document.write("<h1>list of unpublished files</h1><br />"+unpublished);
+}
+/*found this funnction here 
+https://stackoverflow.com/questions/1187518/how-to-get-the-difference-between-two-arrays-in-javascript
+*/
+function arr_diff (a1, a2) {
+
+    var a = [], diff = [];
+
+    for (var i = 0; i < a1.length; i++) {
+        a[a1[i]] = true;
+    }
+
+    for (var i = 0; i < a2.length; i++) {
+        if (a[a2[i]]) {
+            delete a[a2[i]];
+        } else {
+            a[a2[i]] = true;
+        }
+    }
+
+    for (var k in a) {
+        diff.push(k);
+    }
+
+    return diff;
+}
+
+//main functions 
+
+/*This starts the search for the files
+Type 1 searches for non checked in files
+Type 2 searches for everything and checked in files
+This function gets called by getStatus when getStatus is finsihed
+*/
+function search(account,authToken,type){
+
+
+
+        if (type == 1) {
+                    //search for files that are not checked in
+                    //if path is set to "/" it will search all the sites
+                    $.post("https://a.cms.omniupdate.com/sites/findreplace",
+                    {
+                        site: "www",
+                        path: search_path,
+                        srchstr: search_string,
+                        includelocked: false,
+                        authorization_token : authToken,
+                        account : account
+                    },
+                    function(data,status){
+                        var id = data['id'];
+                        var data = {
+                            "id": id,
+                            "site": "www",
+                            "authorization_token" : authToken,
+                            "account" : account
+                        };
+                        getStatus(account,authToken,data,1);
+
+                    }
+
+                    );
+                } //end
+                if (type == 2) {
+                    //search for files that are checked in 
+                    $.post("https://a.cms.omniupdate.com/sites/findreplace",
+                    {
+                        site: "www",
+                        path: search_path,
+                        srchstr: search_string,
+                        authorization_token : authToken,
+                        account : account
+                    },
+                    function(data,status){
+                        var id = data['id'];
+                        var data = {
+                            "id": id,
+                            "site": "www",
+                            "authorization_token" : authToken,
+                            "account" : account
+                        };
+                        getStatus(account,authToken,data,2);
+
+
+                    }
+
+                    );
+                }
+                //end 
+            } 
+
+
+/*This function checks the status of the search from the OU API
+It is a recursive function. It runs until it gets the var finished set to true. 
+It will do this twice to go through the two different searches we are performing. 
+*/
+function getStatus(account,authToken,data,type) {
+    $.get("https://a.cms.omniupdate.com/sites/findreplacestatus",data).then(
+        function(info){
+           info_temp = info;
+           finished = info['finished'];
+
+       });
+
+    if (finished == false ) {
+
+        setTimeout(function() { getStatus(account,authToken,data,type);},15000);
+    } else {
+
+        finished = false;
+        if (type == 1) {
+            data_hold = data;
+            data_set_1 = info_temp;
+            search(account,authToken,2);
+        } 
+        if (type == 2) {
+            data_set_2 = info_temp;
+            build_list(data_set_1,data_set_2);
+        }
+    }
+}
+/*this builds two arrays of paths from the searches
+Then it compares the two to find the the files that are checked in 
+Then it moves onto publishing 
+*/
+function build_list(data_set_1,data_set_2) {
+
+    var list_string_1 = [];
+    for (var i = 0; i < data_set_1.files.length ; i++) {
+
+        list_string_1[i] = data_set_1.files[i].path;
+        
+    }
+    var list_string_2 = [];
+    for (var i = 0; i < data_set_2.files.length ; i++) {
+
+        list_string_2[i] = data_set_2.files[i].path;
+        
+    }
+    var result = arr_diff(list_string_2,list_string_1);
+    for (var i = 0; i < result.length; i++) {
+        difference[i] = result[i];
+    }
+
+    $.post("https://www.mtu.edu/mtu_resources/php/ou/gadgets/publish/create-list.php",
+    {
+        data_set_1: list_string_1,
+        data_set_2: list_string_2
+    },
+    function(data,status){
+
+    }
+
+    );
+    $("#message-area").empty().removeClass("loading").addClass("message").append("Found " + list_string_1.length + " files");
+    setTimeout(function() {  $("#message-area").empty().removeClass("error").addClass("loading").append("Publishing " + list_string_1.length + " Files");
+        publish(list_string_1,0);},3000);
+}
+
+/*This is a recursive function. It goes through all the paths in the path_string and 
+publishes the files using OU's API. i is the index. 
+*/
+function publish(path_string,i){
+    $.post("https://a.cms.omniupdate.com/files/multipublish",
+    {
+        site: "www",
+        path: path_string[i],
+        include_checked_out: "false",
+        authorization_token : data_hold["authorization_token"],
+        account : data_hold["account"]
+    },
+    function(data,status){
+        info_temp = data;
+        finished = data['finished'];
+    }
+
+    );
+    i++;
+    if (i < path_string.length){
+        setTimeout(function() {
+            publish(path_string,i)},1000);
+    } else {
+    for (var i = 0; i < difference.length; i++) {
+        unpublished = unpublished+difference[i]+"<br>";
+    }
+        done(path_string.length);
+    }
+}
+//the final function in the chain of function - just makes the button visiable and changes the message
+function done(num){
+    //this is the end of the line for the program
+        $("#message-area").empty().removeClass("loading").addClass("message").append("Published " + num + " files<br />"+difference.length +" unpublished files");
+        document.getElementById("button-area").style.display = 'block';
+}
+//reset all the variables 
+function reset() {
+    data_set_1 = ""; //results from search that does not include checked out files
+    data_set_2 = ""; //results from search that does include checked out files
+    info_temp = ""; //temp var to store data from post
+    data_hold = ""; //temp to hold account and authToken
+    search_string = ""; //the string to find files
+    finished = false; //if the search is finished 
+    difference = []; //the difference between data_set_1 and data_set_2
+    unpublished = [];//list of paths of unpublished files
+}
+//this is the start of the chain 
+$("#publish-files").submit(function(event){
+    reset();
+    //this gets the search string
+    var values = $(this).serialize().replace('file-type=','');
+    search_string = values;
+    document.getElementById("button-area").style.display = 'none';
+    event.preventDefault();
+    gadget.ready().then(gadget.fetch).then(function () {
+        var account = gadget.get('user');
+        var authToken = gadget.get('token');
+        
+        $("#message-area").empty().removeClass("error").addClass("loading").append("Finding Files");
+        search(account,authToken,1);
+        
+    });
+});
+
+</script>
+</body>
+</html>
